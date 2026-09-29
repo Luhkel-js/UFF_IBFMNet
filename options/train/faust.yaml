@@ -1,0 +1,97 @@
+# general setting
+name: faust
+backend: dp # DataParallel
+type: UFFIBModel
+num_gpu: 1 
+gpu_idx: 0 
+manual_seed: 1234
+non-isometric: false
+partial: false
+
+# path
+path:
+  resume_state: ~
+
+# datasets
+datasets:
+  train_dataset:
+    name: FaustTrain
+    type: PairFaustDataset
+    phase: train
+    data_root: ../data/FAUST_r
+    return_evecs: True
+    return_faces: True
+    num_evecs: 200
+    return_corr: False
+    return_dist: False
+  test_dataset:
+    name: FaustTest
+    type: PairFaustDataset
+    phase: test
+    data_root: ../data/FAUST_r/
+    return_evecs: True
+    return_faces: True
+    num_evecs: 200
+    return_corr: True
+    return_dist: True
+
+  #setting for train dataset
+  batch_size: 1
+  num_worker: 12 #16
+
+# network setting
+networks:
+  feature_extractor:
+    type: DiffusionNet
+    in_channels: 16
+    out_channels: 128
+    cache_dir: ../data/FAUST_r/diffusion
+    input_type: hks
+  permutation:
+    type: Similarity
+    tau: 0.07
+
+# training setting
+train:
+  total_epochs: 15
+  w_cycle: 1.0
+  w_comm: 0.05 #0.01 
+  w_dir: 0.01 #0.00
+  resolvent_alpha: 10.0 #5.0  
+  optims:
+    feature_extractor:
+      type: Adam
+      lr: 1.0e-3
+  schedulers:
+    feature_extractor:
+      type: CosineAnnealingLR
+      eta_min: 1.0e-4
+      T_max: 15 #15
+  losses:
+    rfmnet_loss:
+      type: RfmnetLoss
+      loss_weight: 1.0
+    uff_ib_los:
+      type: UFFIBLoss
+      w_inter: 1.0 
+      w_intra: 0.1 
+      w_ib: 0.15 #0.25
+      tau_inter: 1.0 
+      tau_intra: 1.0 
+      inter_top_k: 30
+      intra_top_k: 30
+      bidirectional: False  #True
+
+# validation setting
+val:
+  val_freq: 2000
+  metrics:
+    geo_error:
+      type: calculate_geodesic_error
+    plot_pck:
+      type: plot_pck
+
+# log setting
+logger:
+  print_freq: 100
+  save_checkpoint_freq: 2000
